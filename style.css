@@ -106,31 +106,21 @@ button { font: inherit; }
 }
 
 #threads line {
-  stroke: #ffd089;
-  stroke-width: 3;
+  stroke: rgba(255, 220, 180, 0.32);
+  stroke-width: 1.2;
   stroke-linecap: round;
-  stroke-dasharray: 0.1 12;
-  opacity: 0.95;
-  filter:
-    drop-shadow(0 0 3px rgba(255, 200, 120, 0.95))
-    drop-shadow(0 0 10px rgba(245, 165, 36, 0.6));
-  animation: thread-flow 9s linear infinite;
-}
-@keyframes thread-flow {
-  to { stroke-dashoffset: -240; }
-}
-#threads line.dim { opacity: 0.22; }
-#threads line.hot {
   opacity: 1;
-  stroke-width: 3.6;
-  stroke: #fff2cc;
-  filter:
-    drop-shadow(0 0 4px rgba(255, 230, 160, 1))
-    drop-shadow(0 0 14px rgba(245, 165, 36, 0.85));
+  transition: stroke .2s ease, stroke-width .2s ease, opacity .2s ease;
+}
+#threads line.dim { opacity: 0.15; }
+#threads line.hot {
+  stroke: rgba(245, 165, 36, 0.95);
+  stroke-width: 1.8;
+  filter: drop-shadow(0 0 6px rgba(245, 165, 36, 0.55));
 }
 #rings circle {
   fill: none;
-  stroke: rgba(255, 220, 180, 0.08);
+  stroke: rgba(255, 220, 180, 0.04);
   stroke-dasharray: 2 6;
 }
 
@@ -141,45 +131,44 @@ button { font: inherit; }
   z-index: 3;
   pointer-events: auto;
   user-select: none;
-  width: 132px;
-  height: 132px;
+  width: 112px;
+  height: 112px;
 }
 .center-label {
   position: absolute;
   left: 50%;
   top: 100%;
   transform: translateX(-50%);
-  margin-top: 18px;
+  margin-top: 14px;
   text-align: center;
   width: max-content;
   max-width: 280px;
 }
 .center-orb {
-  width: 132px; height: 132px;
+  width: 112px; height: 112px;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 35% 30%, #ffd089 0%, #f5a524 35%, #b46a0a 80%, #5a3304 100%);
+    radial-gradient(circle at 50% 50%, rgba(245,165,36,0.06) 0%, rgba(11,12,18,0.6) 70%, rgba(11,12,18,0.85) 100%);
   display: flex; align-items: center; justify-content: center;
+  border: 1.5px solid rgba(245, 165, 36, 0.55);
   box-shadow:
-    0 0 0 1px rgba(255,255,255,0.08) inset,
-    0 0 40px rgba(245,165,36,0.45),
-    0 0 90px rgba(245,165,36,0.25);
-  animation: pulse 4.5s ease-in-out infinite;
+    inset 0 0 24px rgba(245,165,36,0.10),
+    0 0 24px rgba(245,165,36,0.18);
+  animation: pulse 5s ease-in-out infinite;
 }
 .orb-inner {
-  width: 102px; height: 102px;
+  width: 84px; height: 84px;
   border-radius: 50%;
-  background: #fff;
+  background: #0b0c12;
   object-fit: cover;
   object-position: center;
   display: block;
-  box-shadow: 0 0 0 2px rgba(255,200,120,0.25) inset;
 }
-.center-name { font-size: 18px; font-weight: 600; letter-spacing: 0.01em; }
-.center-sub { font-size: 12px; color: var(--fg-dim); margin-top: 2px; }
+.center-name { font-size: 15px; font-weight: 600; letter-spacing: 0.01em; color: var(--fg); }
+.center-sub { font-size: 11.5px; color: var(--fg-dim); margin-top: 3px; }
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,0.08) inset, 0 0 40px rgba(245,165,36,0.40), 0 0 80px rgba(245,165,36,0.22); }
-  50%      { box-shadow: 0 0 0 1px rgba(255,255,255,0.10) inset, 0 0 55px rgba(245,165,36,0.55), 0 0 120px rgba(245,165,36,0.32); }
+  0%, 100% { box-shadow: inset 0 0 24px rgba(245,165,36,0.10), 0 0 18px rgba(245,165,36,0.16); }
+  50%      { box-shadow: inset 0 0 30px rgba(245,165,36,0.16), 0 0 36px rgba(245,165,36,0.28); }
 }
 
 .game-node {
@@ -261,6 +250,31 @@ button { font: inherit; }
   color: var(--fg-mute);
   font-size: 13px;
 }
+
+.zoom-controls {
+  position: absolute;
+  left: 22px; bottom: 56px;
+  z-index: 6;
+  display: inline-flex; flex-direction: column;
+  background: rgba(17, 19, 26, 0.85);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  overflow: hidden;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.zoom-btn {
+  background: transparent;
+  border: 0;
+  color: var(--fg-dim);
+  font-size: 16px;
+  width: 34px; height: 34px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: color .15s ease, background .15s ease;
+}
+.zoom-btn + .zoom-btn { border-top: 1px solid rgba(255,255,255,0.06); }
+.zoom-btn:hover { color: var(--fg); background: rgba(255,255,255,0.04); }
 
 .recenter-btn {
   position: absolute;

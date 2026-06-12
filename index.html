@@ -34,12 +34,12 @@
     <svg id="web-bg" aria-hidden="true">
       <defs>
         <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#f5a524" stop-opacity="0.55" />
-          <stop offset="40%" stop-color="#f5a524" stop-opacity="0.18" />
+          <stop offset="0%" stop-color="#f5a524" stop-opacity="0.18" />
+          <stop offset="55%" stop-color="#f5a524" stop-opacity="0.05" />
           <stop offset="100%" stop-color="#f5a524" stop-opacity="0" />
         </radialGradient>
       </defs>
-      <circle id="centerHalo" r="220" fill="url(#centerGlow)" />
+      <circle id="centerHalo" r="160" fill="url(#centerGlow)" />
       <g id="rings"></g>
     </svg>
 
@@ -64,6 +64,11 @@
     <p>no games published yet.</p>
   </div>
 
+  <div class="zoom-controls" aria-label="zoom">
+    <button id="zoomIn" class="zoom-btn" type="button" title="zoom in">+</button>
+    <button id="zoomOut" class="zoom-btn" type="button" title="zoom out">−</button>
+    <button id="zoomReset" class="zoom-btn" type="button" title="reset view">⤢</button>
+  </div>
   <button id="recenter" class="recenter-btn" type="button" title="recenter" hidden>recenter</button>
 </main>
 

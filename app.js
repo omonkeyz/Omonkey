@@ -47,7 +47,7 @@ const state = {
   })();
 })();
 
-const ORB_RADIUS = 66;        // visual radius of the centre orb (px)
+const ORB_RADIUS = 56;        // visual radius of the centre orb (px)
 const NODE_RADIUS = 42;       // visual radius of a game thumb (px)
 
 // --- web layout ---
@@ -241,9 +241,10 @@ function escapeAttr(s) {
   return String(s).replace(/"/g, '&quot;');
 }
 
-// --- drag to pan ---
+// --- drag to pan + zoom ---
 const Pan = {
   x: 0, y: 0,
+  scale: 1,
   dragging: false,
   startX: 0, startY: 0, origX: 0, origY: 0,
   moved: 0,
@@ -251,9 +252,16 @@ const Pan = {
   init() {
     const stage = $('#stage');
     const wrap = $('#panWrap');
-    const apply = () => { wrap.style.transform = `translate(${this.x}px, ${this.y}px)`; };
+    const apply = () => { wrap.style.transform = `translate(${this.x}px, ${this.y}px) scale(${this.scale})`; };
+    const setScale = (s) => {
+      this.scale = Math.max(0.4, Math.min(2.5, s));
+      apply();
+      $('#recenter').hidden = (this.x === 0 && this.y === 0 && Math.abs(this.scale - 1) < 0.001);
+    };
+    this._apply = apply;
+    this._setScale = setScale;
     stage.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.modal') || e.target.closest('.topbar') || e.target.closest('.bottombar') || e.target.closest('#recenter')) return;
+      if (e.target.closest('.modal') || e.target.closest('.topbar') || e.target.closest('.bottombar') || e.target.closest('#recenter') || e.target.closest('.zoom-controls')) return;
       this.dragging = true;
       this.moved = 0;
       this.startX = e.clientX; this.startY = e.clientY;
@@ -286,9 +294,21 @@ const Pan = {
     stage.addEventListener('pointerup', end);
     stage.addEventListener('pointercancel', end);
     $('#recenter').addEventListener('click', () => {
-      this.x = 0; this.y = 0; apply();
+      this.x = 0; this.y = 0; this.scale = 1; apply();
       $('#recenter').hidden = true;
     });
+    $('#zoomIn').addEventListener('click', () => setScale(this.scale * 1.2));
+    $('#zoomOut').addEventListener('click', () => setScale(this.scale / 1.2));
+    $('#zoomReset').addEventListener('click', () => {
+      this.x = 0; this.y = 0; this.scale = 1; apply();
+      $('#recenter').hidden = true;
+    });
+    stage.addEventListener('wheel', (e) => {
+      if (e.target.closest('.modal')) return;
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 1 / 1.1 : 1.1;
+      setScale(this.scale * factor);
+    }, { passive: false });
   }
 };
 
