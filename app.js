@@ -152,9 +152,7 @@ function layout() {
   });
 
   $('#empty').hidden = state.games.length > 0;
-  $('#counter').textContent = state.games.length
-    ? `${state.games.length} active game${state.games.length === 1 ? '' : 's'}`
-    : '';
+  $('#counter').textContent = `${state.games.length} active game${state.games.length === 1 ? '' : 's'}`;
 }
 
 function highlightThread(idx, on) {
@@ -222,11 +220,13 @@ async function loadGames() {
     if (!res.ok) throw new Error(`http ${res.status}`);
     const data = await res.json();
     const all = Array.isArray(data.games) ? data.games : [];
+    console.log('[omk] games raw:', all);
     state.games = all
       .filter(g => g.active !== false)
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    console.log('[omk] active after filter:', state.games.length, state.games);
   } catch (err) {
-    console.error('load games failed', err);
+    console.error('[omk] load games failed', err);
     state.games = [];
   }
   layout();
