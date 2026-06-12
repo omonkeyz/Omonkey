@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" />
-<link rel="stylesheet" href="/style.css?v=8" />
+<link rel="stylesheet" href="/style.css?v=11" />
 </head>
 <body class="admin">
 
@@ -40,45 +40,47 @@
   </div>
 
   <div class="card">
-    <h2 id="formTitle">add game</h2>
+    <h2 id="formTitle">add node</h2>
     <form id="gameForm">
       <input type="hidden" id="gameId" />
       <div class="field-row">
         <div class="field">
-          <label for="name">name</label>
-          <input id="name" type="text" maxlength="80" required placeholder="game title" />
+          <label for="type">type</label>
+          <select id="type" class="select">
+            <option value="game">game</option>
+            <option value="person">person</option>
+            <option value="group">roblox group</option>
+          </select>
         </div>
         <div class="field">
-          <label for="url">play link</label>
-          <input id="url" type="url" placeholder="https://www.roblox.com/games/..." />
+          <label for="name">name</label>
+          <input id="name" type="text" maxlength="80" required placeholder="title or person name" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="url">link <span class="dim" id="urlLabelHint">roblox or external URL</span></label>
+          <input id="url" type="url" placeholder="https://..." />
           <div id="urlHint" class="hint"></div>
+        </div>
+        <div class="field" id="roleField" style="display:none;">
+          <label for="role">role</label>
+          <input id="role" type="text" maxlength="80" placeholder="e.g. builder, scripter, friend" />
         </div>
       </div>
       <div class="field">
         <label for="description">description</label>
-        <textarea id="description" maxlength="600" placeholder="what is it"></textarea>
+        <textarea id="description" maxlength="600" placeholder="what is it / who are they"></textarea>
       </div>
       <div class="field-row">
         <div class="field">
-          <label>image (thumbnail)</label>
-          <div class="upload">
-            <button type="button" class="btn btn-ghost" id="pickImage">choose image</button>
-            <input type="file" id="imageFile" accept="image/*" hidden />
-            <span class="file-name" id="imageName"></span>
-          </div>
-          <progress id="imageProg" max="100" value="0" hidden></progress>
-          <input type="hidden" id="image" />
+          <label for="image">image URL <span class="dim">(thumbnail / profile pic)</span></label>
+          <input id="image" type="url" placeholder="https://...png" />
           <div id="imagePreview" style="margin-top:10px;"></div>
         </div>
         <div class="field">
-          <label>video (mp4, up to 500&nbsp;mb)</label>
-          <div class="upload">
-            <button type="button" class="btn btn-ghost" id="pickVideo">choose video</button>
-            <input type="file" id="videoFile" accept="video/*" hidden />
-            <span class="file-name" id="videoName"></span>
-          </div>
-          <progress id="videoProg" max="100" value="0" hidden></progress>
-          <input type="hidden" id="video" />
+          <label for="video">video URL <span class="dim">(youtube, vimeo, mp4)</span></label>
+          <input id="video" type="url" placeholder="https://youtube.com/watch?v=..." />
           <div id="videoPreview" style="margin-top:10px;"></div>
         </div>
       </div>
@@ -110,6 +112,6 @@
 
 <div id="toast" class="toast"></div>
 
-<script src="/admin.js?v=10" type="module"></script>
+<script src="/admin.js?v=11" type="module"></script>
 </body>
 </html>

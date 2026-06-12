@@ -50,6 +50,17 @@ button { font: inherit; }
   color: var(--fg);
   font-weight: 500;
 }
+.brand-btn {
+  background: transparent;
+  border: 0;
+  padding: 6px 10px;
+  margin: -6px -10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.brand-btn:hover { background: rgba(245, 165, 36, 0.08); }
+.brand-btn:hover .dot { box-shadow: 0 0 16px var(--accent); }
 .brand .dot {
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--accent);
@@ -270,6 +281,81 @@ button { font: inherit; }
 .game-stat.zero { color: var(--fg-mute); background: transparent; border-color: rgba(255,255,255,0.06); }
 .game-stat.zero::before { background: var(--fg-mute); box-shadow: none; animation: none; }
 
+/* person + group nodes */
+.person-thumb {
+  border-radius: 50%;
+  border-color: rgba(120, 170, 255, 0.32);
+  box-shadow:
+    0 8px 22px rgba(0,0,0,0.45),
+    0 0 0 1px rgba(120,170,255,0.12);
+}
+.person-node:hover .game-thumb {
+  border-color: rgba(120, 170, 255, 0.7);
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(120,170,255,0.45),
+    0 0 30px rgba(120,170,255,0.3);
+}
+.game-role {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--fg-dim);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-thumb {
+  border-radius: 18px;
+  border-color: rgba(160, 130, 255, 0.32);
+  box-shadow:
+    0 8px 22px rgba(0,0,0,0.45),
+    0 0 0 1px rgba(160,130,255,0.12);
+}
+.group-node:hover .game-thumb {
+  border-color: rgba(160, 130, 255, 0.7);
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(160,130,255,0.45),
+    0 0 30px rgba(160,130,255,0.3);
+}
+.group-thumb.placeholder { border-radius: 18px; }
+.group-thumb::after { border-radius: 18px; }
+
+.verified-badge {
+  position: absolute;
+  bottom: -2px; right: -2px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #1d9bf0;
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid #06070a;
+  box-shadow: 0 2px 8px rgba(29, 155, 240, 0.5);
+  z-index: 2;
+}
+.verified-badge svg { width: 12px; height: 12px; display: block; }
+
+.game-label .name-wrap {
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.label-verified {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #1d9bf0;
+  color: #fff;
+  flex-shrink: 0;
+}
+.label-verified svg { width: 9px; height: 9px; display: block; }
+
 .empty-state {
   position: absolute;
   left: 50%; bottom: 18%;
@@ -421,6 +507,36 @@ button { font: inherit; }
 
 .stats { font-size: 12px; color: var(--fg-mute); }
 
+/* iframe in modal media */
+.modal-media iframe {
+  width: 100%; height: 100%; border: 0; display: block;
+}
+
+/* contact modal */
+.contact-card { width: min(440px, 100%); }
+.contact-card .modal-body { padding: 30px 28px 28px; text-align: center; }
+.contact-card h2 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
+.contact-lead { margin: 0 0 18px; color: var(--fg-dim); font-size: 14px; }
+.contact-email {
+  display: inline-block;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--accent);
+  padding: 14px 20px;
+  background: rgba(245, 165, 36, 0.06);
+  border: 1px solid rgba(245, 165, 36, 0.22);
+  border-radius: 12px;
+  margin-bottom: 22px;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+  word-break: break-all;
+}
+.contact-email:hover {
+  background: rgba(245, 165, 36, 0.12);
+  border-color: rgba(245, 165, 36, 0.45);
+  color: #ffb53a;
+}
+.contact-links { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
 /* responsive */
 @media (max-width: 720px) {
   .center-orb { width: 110px; height: 110px; }
@@ -501,6 +617,24 @@ body.admin {
   background: #0d0f16;
 }
 .field textarea { resize: vertical; min-height: 88px; }
+.field select.select {
+  width: 100%;
+  background: #0b0c12;
+  border: 1px solid rgba(255,255,255,0.07);
+  color: var(--fg);
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--fg-dim) 50%), linear-gradient(135deg, var(--fg-dim) 50%, transparent 50%);
+  background-position: calc(100% - 18px) center, calc(100% - 13px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.field select.select:focus { outline: none; border-color: rgba(245,165,36,0.5); }
+.field .dim { color: var(--fg-mute); font-weight: 400; font-size: 11px; margin-left: 4px; }
 .field-row { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
 @media (max-width: 580px) { .field-row { grid-template-columns: 1fr; } }
 

@@ -13,20 +13,20 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" />
-<link rel="stylesheet" href="/style.css?v=8" />
+<link rel="stylesheet" href="/style.css?v=11" />
 </head>
 <body>
 
 <canvas id="starfield" aria-hidden="true"></canvas>
 
 <header class="topbar">
-  <div class="brand">
+  <button type="button" class="brand brand-btn" data-open-contact aria-label="contact">
     <span class="dot"></span>
     <span>omonkey</span>
-  </div>
+  </button>
   <nav>
     <a href="https://discord.com/users/1185297475907330179" target="_blank" rel="noopener">discord</a>
-    <a href="https://www.roblox.com/users/8425090935/profile" target="_blank" rel="noopener">roblox</a>
+    <a href="https://www.roblox.com/users/10257839343/profile" target="_blank" rel="noopener">roblox</a>
   </nav>
 </header>
 
@@ -94,6 +94,22 @@
   </div>
 </div>
 
-<script src="/app.js?v=9" type="module"></script>
+<div id="contactModal" class="modal" hidden>
+  <div class="modal-backdrop" data-close-contact></div>
+  <div class="modal-card contact-card" role="dialog" aria-modal="true" aria-labelledby="c-title">
+    <button class="modal-close" data-close-contact aria-label="close">×</button>
+    <div class="modal-body">
+      <h2 id="c-title">contact</h2>
+      <p class="contact-lead">business inquiries</p>
+      <a class="contact-email mono" href="mailto:business@omonkey.dev">business@omonkey.dev</a>
+      <div class="contact-links">
+        <a class="btn btn-ghost" href="https://discord.com/users/1185297475907330179" target="_blank" rel="noopener">discord</a>
+        <a class="btn btn-ghost" href="https://www.roblox.com/users/10257839343/profile" target="_blank" rel="noopener">roblox</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js?v=11" type="module"></script>
 </body>
 </html>

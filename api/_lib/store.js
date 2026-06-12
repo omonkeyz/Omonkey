@@ -49,17 +49,23 @@ export async function deleteGame(id) {
 function sanitize(input) {
   const out = {};
   if (input.id && typeof input.id === 'string') out.id = input.id.slice(0, 64);
+  const t = input.type;
+  out.type = t === 'person' ? 'person' : (t === 'group' ? 'group' : 'game');
   out.name = String(input.name || '').trim().slice(0, 80);
   out.url = String(input.url || '').trim().slice(0, 400);
   out.description = String(input.description || '').trim().slice(0, 600);
   out.image = String(input.image || '').trim().slice(0, 800);
   out.video = String(input.video || '').trim().slice(0, 800);
+  out.role = String(input.role || '').trim().slice(0, 80);
   out.order = Number.isFinite(+input.order) ? Math.trunc(+input.order) : 0;
   out.active = input.active === false ? false : true;
-  // reject data: URLs (would bloat KV)
+  if (out.type === 'group') {
+    out.memberCount = Number.isFinite(+input.memberCount) ? Math.max(0, Math.trunc(+input.memberCount)) : 0;
+    out.verified = input.verified === true;
+  }
   for (const k of ['image', 'video']) {
     if (out[k].startsWith('data:')) {
-      throw new Error(`${k} must be a uploaded URL, not inline data`);
+      throw new Error(`${k} must be a URL, not inline data`);
     }
   }
   return out;

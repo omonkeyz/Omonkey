@@ -112,7 +112,13 @@ function layout() {
     const dx = p.x - state.cx, dy = p.y - state.cy;
     const dist = Math.hypot(dx, dy) || 1;
     const ux = dx / dist, uy = dy / dist;
-    const nodeRadius = thumbSizeFor(state.games[i]?.playing) / 2 + 4;
+    const g = state.games[i];
+    const nodeSize = g?.type === 'person'
+      ? 78
+      : g?.type === 'group'
+        ? thumbSizeFor(g?.memberCount)
+        : thumbSizeFor(g?.playing);
+    const nodeRadius = nodeSize / 2 + 4;
     const x1 = state.cx + ux * ORB_RADIUS;
     const y1 = state.cy + uy * ORB_RADIUS;
     const x2 = p.x - ux * nodeRadius;
@@ -131,32 +137,61 @@ function layout() {
   nodesLayer.innerHTML = '';
   state.games.forEach((g, i) => {
     const p = positions[i];
+    const isPerson = g.type === 'person';
+    const isGroup = g.type === 'group';
     const el = document.createElement('div');
-    el.className = 'game-node';
+    el.className = 'game-node'
+      + (isPerson ? ' person-node' : '')
+      + (isGroup ? ' group-node' : '');
     el.style.left = p.x + 'px';
     el.style.top = p.y + 'px';
 
     const playing = Number(g.playing) || 0;
-    const size = thumbSizeFor(playing);
+    const memberCount = Number(g.memberCount) || 0;
+    const size = isPerson
+      ? 78
+      : isGroup
+        ? thumbSizeFor(memberCount)
+        : thumbSizeFor(playing);
 
     const initials = (g.name || '?').trim().split(/\s+/).map(s => s[0]).slice(0, 2).join('').toUpperCase();
     const thumb = document.createElement('div');
-    thumb.className = 'game-thumb' + (g.image ? '' : ' placeholder');
+    thumb.className = 'game-thumb'
+      + (g.image ? '' : ' placeholder')
+      + (isPerson ? ' person-thumb' : '')
+      + (isGroup ? ' group-thumb' : '');
     thumb.style.setProperty('--thumb-size', size + 'px');
     if (g.image) thumb.style.backgroundImage = `url("${escapeAttr(g.image)}")`;
     else thumb.textContent = initials || '?';
+
+    if (isGroup && g.verified) {
+      thumb.appendChild(verifiedBadgeEl());
+    }
 
     const label = document.createElement('div');
     label.className = 'game-label';
     label.textContent = g.name || 'untitled';
 
-    const stat = document.createElement('div');
-    stat.className = 'game-stat' + (playing === 0 ? ' zero' : '');
-    stat.textContent = `${fmtCount(playing)} playing`;
-
     el.appendChild(thumb);
     el.appendChild(label);
-    el.appendChild(stat);
+    if (isPerson) {
+      if (g.role) {
+        const role = document.createElement('div');
+        role.className = 'game-role';
+        role.textContent = g.role;
+        el.appendChild(role);
+      }
+    } else if (isGroup) {
+      const stat = document.createElement('div');
+      stat.className = 'game-stat group-stat' + (memberCount === 0 ? ' zero' : '');
+      stat.textContent = `${fmtCount(memberCount)} member${memberCount === 1 ? '' : 's'}`;
+      el.appendChild(stat);
+    } else {
+      const stat = document.createElement('div');
+      stat.className = 'game-stat' + (playing === 0 ? ' zero' : '');
+      stat.textContent = `${fmtCount(playing)} playing`;
+      el.appendChild(stat);
+    }
     el.addEventListener('mouseenter', () => highlightThread(i, true));
     el.addEventListener('mouseleave', () => highlightThread(i, false));
     el.addEventListener('click', (e) => {
@@ -167,7 +202,14 @@ function layout() {
   });
 
   $('#empty').hidden = state.games.length > 0;
-  $('#counter').textContent = `${state.games.length} active game${state.games.length === 1 ? '' : 's'}`;
+  const games = state.games.filter(g => !g.type || g.type === 'game').length;
+  const people = state.games.filter(g => g.type === 'person').length;
+  const groups = state.games.filter(g => g.type === 'group').length;
+  const parts = [];
+  if (games) parts.push(`${games} active game${games === 1 ? '' : 's'}`);
+  if (people) parts.push(`${people} ${people === 1 ? 'person' : 'people'}`);
+  if (groups) parts.push(`${groups} group${groups === 1 ? '' : 's'}`);
+  $('#counter').textContent = parts.join(' · ');
 }
 
 function highlightThread(idx, on) {
@@ -179,13 +221,37 @@ function highlightThread(idx, on) {
 }
 
 // --- modal ---
+const YT_RE = /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/;
+
 function openModal(g) {
-  $('#m-title').textContent = g.name || 'untitled';
-  $('#m-desc').textContent = g.description || '';
+  const title = $('#m-title');
+  title.textContent = g.name || 'untitled';
+  if (g.type === 'group' && g.verified) {
+    const v = document.createElement('span');
+    v.className = 'label-verified';
+    v.style.marginLeft = '8px';
+    v.style.width = '18px';
+    v.style.height = '18px';
+    v.title = 'verified';
+    v.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:12px;height:12px;"><path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91c-1.31.67-2.2 1.91-2.2 3.34s.89 2.67 2.2 3.34c-.46 1.39-.21 2.9.8 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.68-.88 3.34-2.19c1.39.45 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34zm-11.71 4.2L6.8 12.46l1.41-1.42 2.26 2.26 4.8-5.23 1.47 1.36-6.2 6.77z"/></svg>';
+    title.appendChild(v);
+  }
+  const desc = $('#m-desc');
+  desc.textContent = g.role && g.type === 'person'
+    ? `${g.role}${g.description ? '\n\n' + g.description : ''}`
+    : (g.description || '');
   const media = $('#m-media');
   media.classList.remove('placeholder');
   media.innerHTML = '';
-  if (g.video) {
+  const ytId = g.video ? (String(g.video).match(YT_RE) || [])[1] : null;
+  if (ytId) {
+    const f = document.createElement('iframe');
+    f.src = `https://www.youtube.com/embed/${ytId}?rel=0`;
+    f.allow = 'accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    f.allowFullscreen = true;
+    f.setAttribute('frameborder', '0');
+    media.appendChild(f);
+  } else if (g.video) {
     const v = document.createElement('video');
     v.src = g.video;
     v.controls = true;
@@ -205,11 +271,23 @@ function openModal(g) {
   const play = $('#m-play');
   if (g.url) {
     play.href = g.url;
+    play.textContent = g.type === 'person'
+      ? 'visit'
+      : g.type === 'group' ? 'join group' : 'play';
     play.style.display = '';
   } else {
     play.style.display = 'none';
   }
-  $('#m-stats').textContent = '';
+  let statText = '';
+  if (g.type === 'game' && (g.playing != null || g.visits)) {
+    const bits = [];
+    if (g.playing != null) bits.push(`${fmtCount(g.playing)} playing`);
+    if (g.visits) bits.push(`${fmtCount(g.visits)} visits`);
+    statText = bits.join(' · ');
+  } else if (g.type === 'group' && g.memberCount) {
+    statText = `${fmtCount(g.memberCount)} member${g.memberCount === 1 ? '' : 's'}`;
+  }
+  $('#m-stats').textContent = statText;
   $('#modal').hidden = false;
   document.body.style.overflow = 'hidden';
 }
@@ -218,23 +296,50 @@ function closeModal() {
   const media = $('#m-media');
   const v = media.querySelector('video');
   if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
+  const f = media.querySelector('iframe');
+  if (f) { f.src = 'about:blank'; }
   media.innerHTML = '';
+  document.body.style.overflow = '';
+}
+
+function openContact() {
+  $('#contactModal').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+function closeContact() {
+  $('#contactModal').hidden = true;
   document.body.style.overflow = '';
 }
 document.addEventListener('click', (e) => {
   if (e.target.matches('[data-close]')) closeModal();
+  if (e.target.matches('[data-close-contact]')) closeContact();
+  if (e.target.closest('[data-open-contact]')) { e.preventDefault(); openContact(); }
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape') { closeModal(); closeContact(); }
 });
 
 // --- data ---
 const ROBLOX_URL_RE = /(?:roblox\.com\/games\/|placeId=)(\d+)/i;
 
+const ROBLOX_GROUP_URL_RE = /(?:roblox\.com\/(?:groups|communities)\/)(\d+)/i;
+
 async function enrichOne(game) {
+  if (game.type === 'person') return;
   if (!game.url) return;
-  const m = String(game.url).match(ROBLOX_URL_RE);
-  if (!m) return;
+  if (game.type === 'group') {
+    if (!ROBLOX_GROUP_URL_RE.test(game.url)) return;
+    try {
+      const res = await fetch('/api/roblox-group?url=' + encodeURIComponent(game.url));
+      if (!res.ok) return;
+      const data = await res.json();
+      game.memberCount = data.memberCount ?? game.memberCount ?? 0;
+      game.verified = !!data.hasVerifiedBadge;
+      if (!game.image && data.iconUrl) game.image = data.iconUrl;
+    } catch {}
+    return;
+  }
+  if (!ROBLOX_URL_RE.test(game.url)) return;
   try {
     const res = await fetch('/api/roblox?url=' + encodeURIComponent(game.url));
     if (!res.ok) return;
@@ -243,6 +348,14 @@ async function enrichOne(game) {
     game.visits = data.visits ?? 0;
     if (!game.image && data.iconUrl) game.image = data.iconUrl;
   } catch {}
+}
+
+function verifiedBadgeEl() {
+  const wrap = document.createElement('div');
+  wrap.className = 'verified-badge';
+  wrap.title = 'verified';
+  wrap.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91c-1.31.67-2.2 1.91-2.2 3.34s.89 2.67 2.2 3.34c-.46 1.39-.21 2.9.8 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.68-.88 3.34-2.19c1.39.45 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34zm-11.71 4.2L6.8 12.46l1.41-1.42 2.26 2.26 4.8-5.23 1.47 1.36-6.2 6.77z"/></svg>';
+  return wrap;
 }
 
 async function loadGames() {

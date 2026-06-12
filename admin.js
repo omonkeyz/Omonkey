@@ -1,4 +1,4 @@
-// admin panel — manage games (cookie-session, vercel blob direct upload)
+// admin panel — manage games + people (cookie-session, URL-based media)
 const $ = (s, r = document) => r.querySelector(s);
 
 const Toast = {
@@ -60,40 +60,19 @@ const Games = {
   }
 };
 
-let _blobClient = null;
-async function getBlobClient() {
-  if (_blobClient) return _blobClient;
-  _blobClient = await import('https://esm.sh/@vercel/blob@1/client');
-  return _blobClient;
-}
-
-const Upload = {
-  async file(file, kind, onProgress) {
-    if (!file) throw new Error('no file');
-    const maxBytes = kind === 'video' ? 500 * 1024 * 1024 : 25 * 1024 * 1024;
-    if (file.size > maxBytes) {
-      throw new Error(`file too large (max ${kind === 'video' ? '500mb' : '25mb'})`);
-    }
-    const { upload } = await getBlobClient();
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80) || (kind + '.bin');
-    const blob = await upload(safeName, file, {
-      access: 'public',
-      handleUploadUrl: '/api/upload',
-      clientPayload: JSON.stringify({ kind }),
-      multipart: file.size > 25 * 1024 * 1024, // chunked for >25MB
-      onUploadProgress: ({ percentage }) => {
-        if (onProgress) onProgress(Math.round(percentage));
-      },
-    });
-    return blob.url;
-  }
-};
+const YT_RE = /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/;
 
 const Roblox = {
   PLACE_ID_RE: /(?:roblox\.com\/games\/|placeId=)(\d+)/i,
+  GROUP_ID_RE: /(?:roblox\.com\/(?:groups|communities)\/)(\d+)/i,
   parse(url) {
     if (!url) return null;
     const m = String(url).match(this.PLACE_ID_RE);
+    return m ? m[1] : null;
+  },
+  parseGroup(url) {
+    if (!url) return null;
+    const m = String(url).match(this.GROUP_ID_RE);
     return m ? m[1] : null;
   },
   async lookup(url) {
@@ -104,8 +83,48 @@ const Roblox = {
       throw new Error(msg);
     }
     return res.json();
+  },
+  async lookupGroup(url) {
+    const res = await fetch('/api/roblox-group?url=' + encodeURIComponent(url));
+    if (!res.ok) {
+      let msg = `group lookup failed (${res.status})`;
+      try { msg = (await res.json()).error || msg; } catch {}
+      throw new Error(msg);
+    }
+    return res.json();
   }
 };
+
+function renderImagePreview(url) {
+  const box = $('#imagePreview');
+  box.innerHTML = '';
+  if (!url) return;
+  const img = document.createElement('img');
+  img.src = url;
+  img.style.cssText = 'max-width:120px;border-radius:8px;border:1px solid rgba(255,255,255,0.08)';
+  box.appendChild(img);
+}
+
+function renderVideoPreview(url) {
+  const box = $('#videoPreview');
+  box.innerHTML = '';
+  if (!url) return;
+  const ytId = (String(url).match(YT_RE) || [])[1];
+  if (ytId) {
+    const f = document.createElement('iframe');
+    f.src = `https://www.youtube.com/embed/${ytId}`;
+    f.width = 280; f.height = 158;
+    f.style.cssText = 'border:0;border-radius:8px;';
+    f.allow = 'accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    f.allowFullscreen = true;
+    box.appendChild(f);
+  } else {
+    const v = document.createElement('video');
+    v.src = url; v.controls = true;
+    v.style.cssText = 'max-width:280px;border-radius:8px';
+    box.appendChild(v);
+  }
+}
 
 const Form = {
   el: null,
@@ -115,113 +134,133 @@ const Form = {
     this.el.addEventListener('submit', (e) => { e.preventDefault(); this.save(); });
     $('#resetBtn').addEventListener('click', () => this.reset());
 
-    this.bindFilePicker('Image', 'image');
-    this.bindFilePicker('Video', 'video');
+    // type select toggles role field + url hint
+    const typeSel = $('#type');
+    const applyType = () => {
+      const t = typeSel.value;
+      $('#roleField').style.display = t === 'person' ? '' : 'none';
+      const hints = {
+        game: 'roblox game URL',
+        person: 'roblox profile, twitter, website…',
+        group: 'https://www.roblox.com/communities/…',
+      };
+      $('#urlLabelHint').textContent = hints[t] || hints.game;
+    };
+    typeSel.addEventListener('change', applyType);
+    applyType();
+
+    // live preview of pasted URLs
+    $('#image').addEventListener('input', (e) => renderImagePreview(e.target.value.trim()));
+    $('#video').addEventListener('input', (e) => renderVideoPreview(e.target.value.trim()));
 
     const urlField = $('#url');
     const fillIfRoblox = async (force) => {
+      const t = $('#type').value;
       const val = urlField.value.trim();
       if (!val || val === this._lastLookup) return;
-      if (!Roblox.parse(val)) return;
-      this._lastLookup = val;
       const hint = $('#urlHint');
-      hint.textContent = 'fetching from roblox…';
-      hint.className = 'hint';
-      try {
-        const info = await Roblox.lookup(val);
-        // only fill empty fields (don't overwrite user edits) unless force=true
-        if (force || !$('#name').value.trim()) $('#name').value = info.name || '';
-        if (force || !$('#description').value.trim()) $('#description').value = info.description || '';
-        if ((force || !$('#image').value.trim()) && info.iconUrl) {
-          $('#image').value = info.iconUrl;
-          $('#imagePreview').innerHTML = `<img src="${info.iconUrl}" style="max-width:120px;border-radius:8px;border:1px solid rgba(255,255,255,0.08)">`;
+      if (t === 'game') {
+        if (!Roblox.parse(val)) return;
+        this._lastLookup = val;
+        hint.textContent = 'fetching from roblox…';
+        hint.className = 'hint';
+        try {
+          const info = await Roblox.lookup(val);
+          if (force || !$('#name').value.trim()) $('#name').value = info.name || '';
+          if (force || !$('#description').value.trim()) $('#description').value = info.description || '';
+          if ((force || !$('#image').value.trim()) && info.iconUrl) {
+            $('#image').value = info.iconUrl;
+            renderImagePreview(info.iconUrl);
+          }
+          hint.textContent = `✓ ${info.name} · ${info.playing.toLocaleString()} playing · ${info.visits.toLocaleString()} visits`;
+          hint.className = 'hint ok';
+        } catch (err) {
+          hint.textContent = err.message;
+          hint.className = 'hint err';
         }
-        hint.textContent = `✓ ${info.name} · ${info.playing.toLocaleString()} playing · ${info.visits.toLocaleString()} visits`;
-        hint.className = 'hint ok';
-      } catch (err) {
-        hint.textContent = err.message;
-        hint.className = 'hint err';
+      } else if (t === 'group') {
+        if (!Roblox.parseGroup(val)) return;
+        this._lastLookup = val;
+        hint.textContent = 'fetching group from roblox…';
+        hint.className = 'hint';
+        try {
+          const info = await Roblox.lookupGroup(val);
+          if (force || !$('#name').value.trim()) $('#name').value = info.name || '';
+          if (force || !$('#description').value.trim()) $('#description').value = info.description || '';
+          if ((force || !$('#image').value.trim()) && info.iconUrl) {
+            $('#image').value = info.iconUrl;
+            renderImagePreview(info.iconUrl);
+          }
+          this._lastGroupInfo = info; // stash so save() can persist member count + verified
+          const v = info.hasVerifiedBadge ? ' ✓verified' : '';
+          hint.textContent = `✓ ${info.name} · ${info.memberCount.toLocaleString()} members${v}`;
+          hint.className = 'hint ok';
+        } catch (err) {
+          hint.textContent = err.message;
+          hint.className = 'hint err';
+        }
       }
     };
     urlField.addEventListener('blur', () => fillIfRoblox(false));
     urlField.addEventListener('paste', () => setTimeout(() => fillIfRoblox(false), 50));
     this._fillIfRoblox = fillIfRoblox;
   },
-  bindFilePicker(Label, kind) {
-    const btn = $(`#pick${Label}`);
-    const input = $(`#${kind}File`);
-    const name = $(`#${kind}Name`);
-    const prog = $(`#${kind}Prog`);
-    const hidden = $(`#${kind}`);
-    const preview = $(`#${kind}Preview`);
-    btn.addEventListener('click', () => input.click());
-    input.addEventListener('change', async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      name.textContent = file.name;
-      prog.hidden = false; prog.value = 0;
-      btn.disabled = true;
-      try {
-        const url = await Upload.file(file, kind, (pct) => { prog.value = pct; });
-        hidden.value = url;
-        preview.innerHTML = '';
-        if (kind === 'image') {
-          const img = document.createElement('img');
-          img.src = url; img.style.maxWidth = '120px'; img.style.borderRadius = '8px'; img.style.border = '1px solid rgba(255,255,255,0.08)';
-          preview.appendChild(img);
-        } else {
-          const v = document.createElement('video');
-          v.src = url; v.controls = true; v.style.maxWidth = '240px'; v.style.borderRadius = '8px';
-          preview.appendChild(v);
-        }
-        Toast.show(`${kind} uploaded`, 'ok');
-      } catch (err) {
-        Toast.show(err.message, 'err');
-        name.textContent = '';
-      } finally {
-        prog.hidden = true; prog.value = 0; btn.disabled = false; input.value = '';
-      }
-    });
-  },
   fill(g) {
     $('#gameId').value = g?.id || '';
+    const t = g?.type === 'person' ? 'person' : (g?.type === 'group' ? 'group' : 'game');
+    $('#type').value = t;
     $('#name').value = g?.name || '';
     $('#url').value = g?.url || '';
+    $('#role').value = g?.role || '';
     $('#description').value = g?.description || '';
     $('#image').value = g?.image || '';
     $('#video').value = g?.video || '';
     $('#order').value = g?.order ?? 0;
     $('#active').checked = g?.active !== false;
-    $('#imageName').textContent = ''; $('#videoName').textContent = '';
-    $('#imagePreview').innerHTML = g?.image ? `<img src="${g.image}" style="max-width:120px;border-radius:8px;border:1px solid rgba(255,255,255,0.08)">` : '';
-    $('#videoPreview').innerHTML = g?.video ? `<video src="${g.video}" controls style="max-width:240px;border-radius:8px"></video>` : '';
-    $('#formTitle').textContent = g?.id ? 'edit game' : 'add game';
-    $('#saveBtn').textContent = g?.id ? 'save changes' : 'add game';
+    renderImagePreview(g?.image || '');
+    renderVideoPreview(g?.video || '');
+    $('#type').dispatchEvent(new Event('change'));
+    const label = t === 'person' ? 'person' : (t === 'group' ? 'group' : 'game');
+    $('#formTitle').textContent = g?.id ? `edit ${label}` : 'add node';
+    $('#saveBtn').textContent = g?.id ? 'save changes' : 'add';
+    this._lastLookup = '';
+    this._lastGroupInfo = null;
     if (g?.id) window.scrollTo({ top: 0, behavior: 'smooth' });
   },
   reset() { this.fill(null); },
   async save() {
     $('#saveBtn').disabled = true;
     try {
-      // auto-pull roblox metadata if the URL is roblox and we haven't fetched it yet
+      const rawType = $('#type').value;
+      const type = rawType === 'person' ? 'person' : (rawType === 'group' ? 'group' : 'game');
       const urlVal = $('#url').value.trim();
-      if (urlVal && Roblox.parse(urlVal) && this._lastLookup !== urlVal) {
+      // auto-fetch metadata if not already done
+      if (urlVal && this._lastLookup !== urlVal) {
         const needsFill = !$('#name').value.trim() || !$('#description').value.trim() || !$('#image').value.trim();
-        if (needsFill) {
+        const isLookupable =
+          (type === 'game' && Roblox.parse(urlVal)) ||
+          (type === 'group' && Roblox.parseGroup(urlVal));
+        if (isLookupable && (needsFill || type === 'group')) {
           Toast.show('fetching from roblox…', 'ok');
           try { await this._fillIfRoblox(false); } catch {}
         }
       }
       const payload = {
         id: $('#gameId').value || undefined,
+        type,
         name: $('#name').value.trim(),
-        url: $('#url').value.trim(),
+        url: urlVal,
+        role: $('#role').value.trim(),
         description: $('#description').value.trim(),
         image: $('#image').value.trim(),
         video: $('#video').value.trim(),
         order: parseInt($('#order').value, 10) || 0,
         active: $('#active').checked,
       };
+      if (type === 'group' && this._lastGroupInfo && this._lastLookup === urlVal) {
+        payload.memberCount = this._lastGroupInfo.memberCount || 0;
+        payload.verified = !!this._lastGroupInfo.hasVerifiedBadge;
+      }
       if (!payload.name) { Toast.show('name is required', 'err'); return; }
       await Games.save(payload);
       Toast.show(payload.id ? 'updated' : 'added', 'ok');
@@ -247,7 +286,7 @@ const GameList = {
       return;
     }
     if (!this.cache.length) {
-      root.innerHTML = '<div style="color:#5b5d6a;font-size:13px;padding:10px;">no games yet — add one above.</div>';
+      root.innerHTML = '<div style="color:#5b5d6a;font-size:13px;padding:10px;">nothing yet — add a game or person above.</div>';
       return;
     }
     const sorted = [...this.cache].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -260,9 +299,17 @@ const GameList = {
       if (g.image) thumb.style.backgroundImage = `url("${escapeAttr(g.image)}")`;
       const meta = document.createElement('div');
       meta.className = 'meta';
+      const typeBadge = g.type === 'person'
+        ? ' <span class="badge" style="background:rgba(120,170,255,0.12);color:#9cc0ff;">person</span>'
+        : g.type === 'group'
+          ? ' <span class="badge" style="background:rgba(160,130,255,0.14);color:#c5b3ff;">group</span>'
+          : ' <span class="badge">game</span>';
+      const hiddenBadge = g.active === false
+        ? ' <span class="badge" style="background:rgba(255,255,255,0.06);color:#9295a3;">hidden</span>'
+        : '';
       meta.innerHTML = `
-        <div class="name">${escapeHtml(g.name)}${g.active === false ? ' <span class="badge" style="background:rgba(255,255,255,0.06);color:#9295a3;">hidden</span>' : ''}</div>
-        <div class="sub">${escapeHtml(g.url || '—')}</div>
+        <div class="name">${escapeHtml(g.name)}${typeBadge}${hiddenBadge}</div>
+        <div class="sub">${escapeHtml(g.role || g.url || '—')}</div>
       `;
       const actions = document.createElement('div');
       actions.className = 'actions';
