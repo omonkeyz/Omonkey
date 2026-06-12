@@ -47,9 +47,12 @@ const state = {
   })();
 })();
 
+const ORB_RADIUS = 66;        // visual radius of the centre orb (px)
+const NODE_RADIUS = 42;       // visual radius of a game thumb (px)
+
 // --- web layout ---
 function layout() {
-  const stage = $('.web-stage');
+  const stage = $('#stage');
   const rect = stage.getBoundingClientRect();
   const w = rect.width;
   const h = rect.height;
@@ -77,7 +80,6 @@ function layout() {
   const positions = [];
   if (n > 0) {
     const baseR = Math.min(w, h) * 0.34;
-    // distribute on one or two rings depending on count
     const useTwoRings = n > 8;
     for (let i = 0; i < n; i++) {
       let ring, idxInRing, ringCount;
@@ -89,7 +91,6 @@ function layout() {
         else { ring = 1; idxInRing = i - inner; ringCount = n - inner; }
       }
       const r = baseR * (ring === 0 ? 0.78 : 1.15);
-      // offset alternating rings so they don't align
       const offset = ring === 1 ? Math.PI / ringCount : -Math.PI / 2;
       const angle = (idxInRing / ringCount) * Math.PI * 2 + offset;
       const x = state.cx + Math.cos(angle) * r;
@@ -99,15 +100,22 @@ function layout() {
   }
   state.positions = positions;
 
-  // draw threads
+  // draw threads — start just outside the orb, end just before the node
   const threads = $('#threads');
   threads.innerHTML = '';
   positions.forEach((p, i) => {
+    const dx = p.x - state.cx, dy = p.y - state.cy;
+    const dist = Math.hypot(dx, dy) || 1;
+    const ux = dx / dist, uy = dy / dist;
+    const x1 = state.cx + ux * ORB_RADIUS;
+    const y1 = state.cy + uy * ORB_RADIUS;
+    const x2 = p.x - ux * NODE_RADIUS;
+    const y2 = p.y - uy * NODE_RADIUS;
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', state.cx);
-    line.setAttribute('y1', state.cy);
-    line.setAttribute('x2', p.x);
-    line.setAttribute('y2', p.y);
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
     line.dataset.idx = i;
     threads.appendChild(line);
   });
@@ -136,7 +144,10 @@ function layout() {
     el.appendChild(label);
     el.addEventListener('mouseenter', () => highlightThread(i, true));
     el.addEventListener('mouseleave', () => highlightThread(i, false));
-    el.addEventListener('click', () => openModal(g));
+    el.addEventListener('click', (e) => {
+      if (Pan.justDragged) { e.preventDefault(); return; }
+      openModal(g);
+    });
     nodesLayer.appendChild(el);
   });
 
@@ -225,5 +236,57 @@ function escapeAttr(s) {
   return String(s).replace(/"/g, '&quot;');
 }
 
+// --- drag to pan ---
+const Pan = {
+  x: 0, y: 0,
+  dragging: false,
+  startX: 0, startY: 0, origX: 0, origY: 0,
+  moved: 0,
+  justDragged: false,
+  init() {
+    const stage = $('#stage');
+    const wrap = $('#panWrap');
+    const apply = () => { wrap.style.transform = `translate(${this.x}px, ${this.y}px)`; };
+    stage.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.modal') || e.target.closest('.topbar') || e.target.closest('.bottombar')) return;
+      this.dragging = true;
+      this.moved = 0;
+      this.startX = e.clientX; this.startY = e.clientY;
+      this.origX = this.x; this.origY = this.y;
+      stage.setPointerCapture(e.pointerId);
+      stage.classList.add('dragging');
+    });
+    stage.addEventListener('pointermove', (e) => {
+      if (!this.dragging) return;
+      const dx = e.clientX - this.startX;
+      const dy = e.clientY - this.startY;
+      this.moved = Math.max(this.moved, Math.hypot(dx, dy));
+      this.x = this.origX + dx;
+      this.y = this.origY + dy;
+      apply();
+    });
+    const end = (e) => {
+      if (!this.dragging) return;
+      this.dragging = false;
+      stage.classList.remove('dragging');
+      if (e && stage.hasPointerCapture(e.pointerId)) {
+        try { stage.releasePointerCapture(e.pointerId); } catch {}
+      }
+      if (this.moved > 5) {
+        this.justDragged = true;
+        setTimeout(() => { this.justDragged = false; }, 120);
+        $('#recenter').hidden = false;
+      }
+    };
+    stage.addEventListener('pointerup', end);
+    stage.addEventListener('pointercancel', end);
+    $('#recenter').addEventListener('click', () => {
+      this.x = 0; this.y = 0; apply();
+      $('#recenter').hidden = true;
+    });
+  }
+};
+
 window.addEventListener('resize', layout);
+Pan.init();
 loadGames();
