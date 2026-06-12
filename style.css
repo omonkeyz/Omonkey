@@ -130,15 +130,13 @@ button { font: inherit; }
   animation: pulse 4.5s ease-in-out infinite;
 }
 .orb-inner {
-  width: 86px; height: 86px;
+  width: 102px; height: 102px;
   border-radius: 50%;
-  background: linear-gradient(180deg, #1a1106 0%, #2a1a08 100%);
-  display: flex; align-items: center; justify-content: center;
-  color: #ffd089;
-  font-weight: 700;
-  font-size: 22px;
-  letter-spacing: 0.02em;
-  box-shadow: 0 0 0 1px rgba(255,200,120,0.15) inset;
+  background: #fff;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  box-shadow: 0 0 0 2px rgba(255,200,120,0.25) inset;
 }
 .center-label { text-align: center; }
 .center-name { font-size: 18px; font-weight: 600; letter-spacing: 0.01em; }
@@ -331,8 +329,8 @@ button { font: inherit; }
 
 /* responsive */
 @media (max-width: 720px) {
-  .center-orb { width: 100px; height: 100px; }
-  .orb-inner { width: 64px; height: 64px; font-size: 18px; }
+  .center-orb { width: 110px; height: 110px; }
+  .orb-inner { width: 80px; height: 80px; }
   .game-thumb { width: 64px; height: 64px; }
   .game-label { font-size: 11px; }
   .topbar, .bottombar { padding: 14px 16px; }
