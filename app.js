@@ -248,7 +248,7 @@ const Pan = {
     const wrap = $('#panWrap');
     const apply = () => { wrap.style.transform = `translate(${this.x}px, ${this.y}px)`; };
     stage.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.modal') || e.target.closest('.topbar') || e.target.closest('.bottombar')) return;
+      if (e.target.closest('.modal') || e.target.closest('.topbar') || e.target.closest('.bottombar') || e.target.closest('#recenter')) return;
       this.dragging = true;
       this.moved = 0;
       this.startX = e.clientX; this.startY = e.clientY;
