@@ -112,10 +112,11 @@ function layout() {
     const dx = p.x - state.cx, dy = p.y - state.cy;
     const dist = Math.hypot(dx, dy) || 1;
     const ux = dx / dist, uy = dy / dist;
+    const nodeRadius = thumbSizeFor(state.games[i]?.playing) / 2 + 4;
     const x1 = state.cx + ux * ORB_RADIUS;
     const y1 = state.cy + uy * ORB_RADIUS;
-    const x2 = p.x - ux * NODE_RADIUS;
-    const y2 = p.y - uy * NODE_RADIUS;
+    const x2 = p.x - ux * nodeRadius;
+    const y2 = p.y - uy * nodeRadius;
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', x1);
     line.setAttribute('y1', y1);
@@ -135,9 +136,13 @@ function layout() {
     el.style.left = p.x + 'px';
     el.style.top = p.y + 'px';
 
+    const playing = Number(g.playing) || 0;
+    const size = thumbSizeFor(playing);
+
     const initials = (g.name || '?').trim().split(/\s+/).map(s => s[0]).slice(0, 2).join('').toUpperCase();
     const thumb = document.createElement('div');
     thumb.className = 'game-thumb' + (g.image ? '' : ' placeholder');
+    thumb.style.setProperty('--thumb-size', size + 'px');
     if (g.image) thumb.style.backgroundImage = `url("${escapeAttr(g.image)}")`;
     else thumb.textContent = initials || '?';
 
@@ -145,8 +150,13 @@ function layout() {
     label.className = 'game-label';
     label.textContent = g.name || 'untitled';
 
+    const stat = document.createElement('div');
+    stat.className = 'game-stat' + (playing === 0 ? ' zero' : '');
+    stat.textContent = `${fmtCount(playing)} playing`;
+
     el.appendChild(thumb);
     el.appendChild(label);
+    el.appendChild(stat);
     el.addEventListener('mouseenter', () => highlightThread(i, true));
     el.addEventListener('mouseleave', () => highlightThread(i, false));
     el.addEventListener('click', (e) => {
@@ -219,22 +229,54 @@ document.addEventListener('keydown', (e) => {
 });
 
 // --- data ---
+const ROBLOX_URL_RE = /(?:roblox\.com\/games\/|placeId=)(\d+)/i;
+
+async function enrichOne(game) {
+  if (!game.url) return;
+  const m = String(game.url).match(ROBLOX_URL_RE);
+  if (!m) return;
+  try {
+    const res = await fetch('/api/roblox?url=' + encodeURIComponent(game.url));
+    if (!res.ok) return;
+    const data = await res.json();
+    game.playing = data.playing ?? 0;
+    game.visits = data.visits ?? 0;
+    if (!game.image && data.iconUrl) game.image = data.iconUrl;
+  } catch {}
+}
+
 async function loadGames() {
   try {
     const res = await fetch('/api/games', { cache: 'no-store' });
     if (!res.ok) throw new Error(`http ${res.status}`);
     const data = await res.json();
     const all = Array.isArray(data.games) ? data.games : [];
-    console.log('[omk] games raw:', all);
     state.games = all
       .filter(g => g.active !== false)
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    console.log('[omk] active after filter:', state.games.length, state.games);
   } catch (err) {
     console.error('[omk] load games failed', err);
     state.games = [];
   }
   layout();
+  // enrich with live roblox stats in parallel, then re-render
+  if (state.games.length) {
+    await Promise.all(state.games.map(enrichOne));
+    layout();
+  }
+}
+
+function thumbSizeFor(playing) {
+  const p = Math.max(0, Number(playing) || 0);
+  // log scale: 0→72, 10→84, 100→96, 1k→108, 10k→120, 100k→132
+  const size = 72 + Math.log10(p + 1) * 12;
+  return Math.round(Math.max(60, Math.min(136, size)));
+}
+
+function fmtCount(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+  return String(n);
 }
 
 function escapeAttr(s) {
