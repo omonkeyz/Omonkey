@@ -77,110 +77,166 @@ function layout() {
   }
 
   const n = state.games.length;
-  const positions = [];
-  if (n > 0) {
-    // 1. measure each node so big thumbs claim bigger angular slots
-    const PAD = 38; // pixel gap budget around each node
-    const sizes = state.games.map(g => {
-      if (g.type === 'person') return 78;
-      if (g.type === 'group') return thumbSizeFor(g.memberCount);
-      return thumbSizeFor(g.playing);
-    });
-    const arcs = sizes.map(s => s + PAD * 2);
-    const totalArc = arcs.reduce((a, s) => a + s, 0);
+  const positions = new Array(n);
+  // node pixel radius helper
+  const sizeFor = (g) => {
+    if (g.type === 'person') return 78;
+    if (g.type === 'group') return thumbSizeFor(g.memberCount);
+    return thumbSizeFor(g.playing);
+  };
+  const sizes = state.games.map(sizeFor);
 
-    // 2. pick a radius that (a) gives nodes breathing room, (b) fits in viewport
-    const visualR = Math.min(w, h) * 0.32;
-    const fitR = totalArc / (2 * Math.PI);
-    const maxR = Math.min(w, h) * 0.46;
-    let useTwoRings = false;
-    let ringR = Math.max(visualR, fitR);
-    if (ringR > maxR) { useTwoRings = true; ringR = maxR; }
+  // 1. classify roots vs satellites
+  const idToIndex = new Map();
+  state.games.forEach((g, i) => { if (g.id) idToIndex.set(g.id, i); });
+  const childrenOf = new Map(); // parent index -> [child indices]
+  const rootIndices = [];
+  state.games.forEach((g, i) => {
+    const pIdx = g.parentId ? idToIndex.get(g.parentId) : undefined;
+    if (pIdx != null && pIdx !== i) {
+      const arr = childrenOf.get(pIdx) || [];
+      arr.push(i);
+      childrenOf.set(pIdx, arr);
+    } else {
+      rootIndices.push(i);
+    }
+  });
 
+  // 2. effective arc per root = its own size + extra budget for satellites
+  const PAD = 38;
+  const SAT_GAP = 22; // gap between a parent and its satellite
+  const arcs = rootIndices.map(i => {
+    const own = sizes[i] + PAD * 2;
+    const kids = childrenOf.get(i) || [];
+    let extra = 0;
+    if (kids.length) {
+      // approximate angular budget claimed by satellites at orbit ringR (we'll refine after picking ringR)
+      const kidsTotal = kids.reduce((a, ki) => a + sizes[ki] + PAD, 0);
+      extra = kidsTotal * 0.75; // satellites fan outward — needs less in-ring budget than full sum
+    }
+    return own + extra;
+  });
+  const totalArc = arcs.reduce((a, s) => a + s, 0) || 1;
+
+  // 3. ring radius pick
+  const visualR = Math.min(w, h) * 0.32;
+  const fitR = totalArc / (2 * Math.PI);
+  const maxR = Math.min(w, h) * 0.46;
+  let useTwoRings = false;
+  let ringR = Math.max(visualR, fitR);
+  if (ringR > maxR) { useTwoRings = true; ringR = maxR; }
+
+  const placeRoot = (rootIdx, angle, r) => {
+    const x = state.cx + Math.cos(angle) * r;
+    const y = state.cy + Math.sin(angle) * r;
+    positions[rootIdx] = { x, y, angle, r };
+  };
+
+  if (rootIndices.length > 0) {
     if (!useTwoRings) {
-      // single ring, angular slot proportional to node size
-      let cursor = -Math.PI / 2 - Math.PI; // start at top (rotate so first slot's centre is at 12 o'clock)
-      // shift so first node sits centred at top
-      cursor = -Math.PI / 2 - (arcs[0] / totalArc) * Math.PI;
-      for (let i = 0; i < n; i++) {
-        const slot = (arcs[i] / totalArc) * Math.PI * 2;
+      let cursor = -Math.PI / 2 - (arcs[0] / totalArc) * Math.PI;
+      rootIndices.forEach((rootIdx, k) => {
+        const slot = (arcs[k] / totalArc) * Math.PI * 2;
         const baseAngle = cursor + slot / 2;
-        const seed = (state.games[i]?.id || String(i)).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+        const seed = (state.games[rootIdx]?.id || String(rootIdx)).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
         const jitterA = ((seed % 1000) / 1000 - 0.5) * slot * 0.18;
         const jitterR = (((seed >>> 10) % 1000) / 1000 - 0.5) * 28;
-        const angle = baseAngle + jitterA;
-        const r = ringR + jitterR;
-        const x = state.cx + Math.cos(angle) * r;
-        const y = state.cy + Math.sin(angle) * r;
-        positions.push({ x, y, angle, r });
+        placeRoot(rootIdx, baseAngle + jitterA, ringR + jitterR);
         cursor += slot;
-      }
+      });
     } else {
-      // two rings: alternate biggest -> outer, next -> inner, etc.
-      const byIdx = sizes.map((s, i) => ({ s, i })).sort((a, b) => b.s - a.s);
+      const byIdx = rootIndices.map((origIdx, k) => ({ s: sizes[origIdx], origIdx, k })).sort((a, b) => b.s - a.s);
       const inner = [], outer = [];
-      byIdx.forEach((it, k) => (k % 2 === 0 ? outer : inner).push(it.i));
-      const ringFor = new Array(n);
-      const idxInRing = new Array(n);
+      byIdx.forEach((it, k) => (k % 2 === 0 ? outer : inner).push(it));
+      const ringFor = new Map();
       const ringArcs = [0, 0];
       [inner, outer].forEach((ringList, ringNum) => {
-        ringList.forEach((origIdx, k) => {
-          ringFor[origIdx] = ringNum;
-          idxInRing[origIdx] = k;
-          ringArcs[ringNum] += arcs[origIdx];
+        ringList.forEach((it) => {
+          ringFor.set(it.origIdx, ringNum);
+          ringArcs[ringNum] += arcs[it.k];
         });
       });
       const innerR = Math.min(w, h) * 0.26;
       const outerR = Math.min(w, h) * 0.44;
       const ringRadii = [innerR, outerR];
       const cursors = [0, 0];
-      // align first slot at top
-      cursors[0] = -Math.PI / 2 - (arcs[inner[0]] / ringArcs[0]) * Math.PI;
-      cursors[1] = -Math.PI / 2 - (arcs[outer[0]] / ringArcs[1]) * Math.PI + Math.PI / Math.max(outer.length, 1);
-      for (let i = 0; i < n; i++) {
-        const ringNum = ringFor[i];
-        const ringList = ringNum === 0 ? inner : outer;
-        const ringTotal = ringArcs[ringNum];
-        const slot = (arcs[i] / ringTotal) * Math.PI * 2;
+      const innerFirstArc = inner.length ? arcs[inner[0].k] / ringArcs[0] : 0;
+      const outerFirstArc = outer.length ? arcs[outer[0].k] / ringArcs[1] : 0;
+      cursors[0] = -Math.PI / 2 - innerFirstArc * Math.PI;
+      cursors[1] = -Math.PI / 2 - outerFirstArc * Math.PI + Math.PI / Math.max(outer.length, 1);
+      rootIndices.forEach((rootIdx, k) => {
+        const ringNum = ringFor.get(rootIdx);
+        const ringTotal = ringArcs[ringNum] || 1;
+        const slot = (arcs[k] / ringTotal) * Math.PI * 2;
         const baseAngle = cursors[ringNum] + slot / 2;
-        const seed = (state.games[i]?.id || String(i)).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+        const seed = (state.games[rootIdx]?.id || String(rootIdx)).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
         const jitterA = ((seed % 1000) / 1000 - 0.5) * slot * 0.15;
         const jitterR = (((seed >>> 10) % 1000) / 1000 - 0.5) * 24;
-        const angle = baseAngle + jitterA;
-        const r = ringRadii[ringNum] + jitterR;
-        const x = state.cx + Math.cos(angle) * r;
-        const y = state.cy + Math.sin(angle) * r;
-        positions.push({ x, y, angle, r });
+        placeRoot(rootIdx, baseAngle + jitterA, ringRadii[ringNum] + jitterR);
         cursors[ringNum] += slot;
-      }
+      });
     }
   }
+
+  // 4. place satellites around their parents (outward from centre)
+  childrenOf.forEach((kids, parentIdx) => {
+    const parentPos = positions[parentIdx];
+    if (!parentPos) return;
+    const parentSize = sizes[parentIdx];
+    const outAngle = parentPos.angle; // direction from centre to parent
+    const k = kids.length;
+    // fan spread: tighter for one kid, wider for many
+    const spread = Math.min(Math.PI * 0.9, (Math.PI / 4) * Math.max(1, k - 1));
+    kids.forEach((kidIdx, j) => {
+      const kidSize = sizes[kidIdx];
+      const dist = parentSize / 2 + kidSize / 2 + SAT_GAP;
+      const t = k === 1 ? 0 : (j / (k - 1)) - 0.5;
+      const seed = (state.games[kidIdx]?.id || String(kidIdx)).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+      const jitterA = ((seed % 1000) / 1000 - 0.5) * 0.18;
+      const childAngle = outAngle + t * spread + jitterA;
+      const x = parentPos.x + Math.cos(childAngle) * dist;
+      const y = parentPos.y + Math.sin(childAngle) * dist;
+      positions[kidIdx] = { x, y, angle: childAngle, r: parentPos.r + dist, parentIdx };
+    });
+  });
   state.positions = positions;
 
-  // draw threads — start just outside the orb, end just before the node
+  // draw threads — root nodes thread from centre orb; satellites thread from their parent
   const threads = $('#threads');
   threads.innerHTML = '';
   positions.forEach((p, i) => {
-    const dx = p.x - state.cx, dy = p.y - state.cy;
-    const dist = Math.hypot(dx, dy) || 1;
-    const ux = dx / dist, uy = dy / dist;
+    if (!p) return;
     const g = state.games[i];
-    const nodeSize = g?.type === 'person'
-      ? 78
-      : g?.type === 'group'
-        ? thumbSizeFor(g?.memberCount)
-        : thumbSizeFor(g?.playing);
+    const nodeSize = sizes[i];
     const nodeRadius = nodeSize / 2 + 4;
-    const x1 = state.cx + ux * ORB_RADIUS;
-    const y1 = state.cy + uy * ORB_RADIUS;
-    const x2 = p.x - ux * nodeRadius;
-    const y2 = p.y - uy * nodeRadius;
+    let x1, y1, x2, y2;
+    if (p.parentIdx != null) {
+      const parent = positions[p.parentIdx];
+      const parentSize = sizes[p.parentIdx];
+      const parentRadius = parentSize / 2 + 4;
+      const dx = p.x - parent.x, dy = p.y - parent.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const ux = dx / dist, uy = dy / dist;
+      x1 = parent.x + ux * parentRadius;
+      y1 = parent.y + uy * parentRadius;
+      x2 = p.x - ux * nodeRadius;
+      y2 = p.y - uy * nodeRadius;
+    } else {
+      const dx = p.x - state.cx, dy = p.y - state.cy;
+      const dist = Math.hypot(dx, dy) || 1;
+      const ux = dx / dist, uy = dy / dist;
+      x1 = state.cx + ux * ORB_RADIUS;
+      y1 = state.cy + uy * ORB_RADIUS;
+      x2 = p.x - ux * nodeRadius;
+      y2 = p.y - uy * nodeRadius;
+    }
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', x1);
     line.setAttribute('y1', y1);
     line.setAttribute('x2', x2);
     line.setAttribute('y2', y2);
     line.dataset.idx = i;
+    if (p.parentIdx != null) line.classList.add('satellite');
     threads.appendChild(line);
   });
 

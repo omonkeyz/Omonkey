@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" />
-<link rel="stylesheet" href="/style.css?v=11" />
+<link rel="stylesheet" href="/style.css?v=13" />
 </head>
 <body class="admin">
 
@@ -68,6 +68,12 @@
           <input id="role" type="text" maxlength="80" placeholder="e.g. builder, scripter, friend" />
         </div>
       </div>
+      <div class="field" id="parentField" style="display:none;">
+        <label for="parentId">link to game <span class="dim">(optional — attach this to a game node)</span></label>
+        <select id="parentId" class="select">
+          <option value="">— none (attach to omonkey centre) —</option>
+        </select>
+      </div>
       <div class="field">
         <label for="description">description</label>
         <textarea id="description" maxlength="600" placeholder="what is it / who are they"></textarea>
@@ -112,6 +118,6 @@
 
 <div id="toast" class="toast"></div>
 
-<script src="/admin.js?v=11" type="module"></script>
+<script src="/admin.js?v=13" type="module"></script>
 </body>
 </html>

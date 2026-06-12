@@ -57,6 +57,7 @@ function sanitize(input) {
   out.image = String(input.image || '').trim().slice(0, 800);
   out.video = String(input.video || '').trim().slice(0, 800);
   out.role = String(input.role || '').trim().slice(0, 80);
+  out.parentId = input.parentId && typeof input.parentId === 'string' ? input.parentId.slice(0, 64) : '';
   out.order = Number.isFinite(+input.order) ? Math.trunc(+input.order) : 0;
   out.active = input.active === false ? false : true;
   if (out.type === 'group') {

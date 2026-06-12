@@ -134,11 +134,12 @@ const Form = {
     this.el.addEventListener('submit', (e) => { e.preventDefault(); this.save(); });
     $('#resetBtn').addEventListener('click', () => this.reset());
 
-    // type select toggles role field + url hint
+    // type select toggles role field + url hint + parent picker
     const typeSel = $('#type');
     const applyType = () => {
       const t = typeSel.value;
       $('#roleField').style.display = t === 'person' ? '' : 'none';
+      $('#parentField').style.display = (t === 'person' || t === 'group') ? '' : 'none';
       const hints = {
         game: 'roblox game URL',
         person: 'roblox profile, twitter, website…',
@@ -205,6 +206,22 @@ const Form = {
     urlField.addEventListener('paste', () => setTimeout(() => fillIfRoblox(false), 50));
     this._fillIfRoblox = fillIfRoblox;
   },
+  populateParents(games, selfId) {
+    const sel = $('#parentId');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— none (attach to omonkey centre) —</option>';
+    const gameNodes = games
+      .filter(x => (!x.type || x.type === 'game') && x.id && x.id !== selfId)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    for (const x of gameNodes) {
+      const opt = document.createElement('option');
+      opt.value = x.id;
+      opt.textContent = x.name || '(untitled)';
+      sel.appendChild(opt);
+    }
+    // restore prior selection if still valid
+    if (current && [...sel.options].some(o => o.value === current)) sel.value = current;
+  },
   fill(g) {
     $('#gameId').value = g?.id || '';
     const t = g?.type === 'person' ? 'person' : (g?.type === 'group' ? 'group' : 'game');
@@ -219,6 +236,9 @@ const Form = {
     $('#active').checked = g?.active !== false;
     renderImagePreview(g?.image || '');
     renderVideoPreview(g?.video || '');
+    // refresh dropdown from latest list (excluding self)
+    this.populateParents(GameList.cache || [], g?.id || '');
+    $('#parentId').value = g?.parentId || '';
     $('#type').dispatchEvent(new Event('change'));
     const label = t === 'person' ? 'person' : (t === 'group' ? 'group' : 'game');
     $('#formTitle').textContent = g?.id ? `edit ${label}` : 'add node';
@@ -251,6 +271,7 @@ const Form = {
         name: $('#name').value.trim(),
         url: urlVal,
         role: $('#role').value.trim(),
+        parentId: (type === 'person' || type === 'group') ? ($('#parentId').value || '') : '',
         description: $('#description').value.trim(),
         image: $('#image').value.trim(),
         video: $('#video').value.trim(),
@@ -285,6 +306,8 @@ const GameList = {
       root.innerHTML = `<div style="color:#ffb0b0;font-size:13px;padding:10px;">${escapeHtml(err.message)}</div>`;
       return;
     }
+    // refresh form's parent dropdown with latest games
+    Form.populateParents(this.cache, $('#gameId').value || '');
     if (!this.cache.length) {
       root.innerHTML = '<div style="color:#5b5d6a;font-size:13px;padding:10px;">nothing yet — add a game or person above.</div>';
       return;
@@ -307,8 +330,14 @@ const GameList = {
       const hiddenBadge = g.active === false
         ? ' <span class="badge" style="background:rgba(255,255,255,0.06);color:#9295a3;">hidden</span>'
         : '';
+      const parentName = g.parentId
+        ? (this.cache.find(x => x.id === g.parentId)?.name || '')
+        : '';
+      const linkedBadge = parentName
+        ? ` <span class="badge" style="background:rgba(160,130,255,0.12);color:#c5b3ff;">→ ${escapeHtml(parentName)}</span>`
+        : '';
       meta.innerHTML = `
-        <div class="name">${escapeHtml(g.name)}${typeBadge}${hiddenBadge}</div>
+        <div class="name">${escapeHtml(g.name)}${typeBadge}${hiddenBadge}${linkedBadge}</div>
         <div class="sub">${escapeHtml(g.role || g.url || '—')}</div>
       `;
       const actions = document.createElement('div');

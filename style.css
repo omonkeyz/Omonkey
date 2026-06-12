@@ -124,6 +124,11 @@ button { font: inherit; }
   opacity: 1;
   transition: stroke .2s ease, stroke-width .2s ease, opacity .2s ease;
 }
+#threads line.satellite {
+  stroke: rgba(160, 130, 255, 0.55);
+  stroke-dasharray: 3 4;
+  stroke-width: 1.1;
+}
 #threads line.dim { opacity: 0.15; }
 #threads line.hot {
   stroke: rgba(245, 165, 36, 0.95);
