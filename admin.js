@@ -63,7 +63,7 @@ const Games = {
 let _blobClient = null;
 async function getBlobClient() {
   if (_blobClient) return _blobClient;
-  _blobClient = await import('https://esm.sh/@vercel/blob@0.27.0/client');
+  _blobClient = await import('https://esm.sh/@vercel/blob@1/client');
   return _blobClient;
 }
 
