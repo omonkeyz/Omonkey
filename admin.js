@@ -89,8 +89,27 @@ const Upload = {
   }
 };
 
+const Roblox = {
+  PLACE_ID_RE: /(?:roblox\.com\/games\/|placeId=)(\d+)/i,
+  parse(url) {
+    if (!url) return null;
+    const m = String(url).match(this.PLACE_ID_RE);
+    return m ? m[1] : null;
+  },
+  async lookup(url) {
+    const res = await fetch('/api/roblox?url=' + encodeURIComponent(url));
+    if (!res.ok) {
+      let msg = `roblox lookup failed (${res.status})`;
+      try { msg = (await res.json()).error || msg; } catch {}
+      throw new Error(msg);
+    }
+    return res.json();
+  }
+};
+
 const Form = {
   el: null,
+  _lastLookup: '',
   init() {
     this.el = $('#gameForm');
     this.el.addEventListener('submit', (e) => { e.preventDefault(); this.save(); });
@@ -98,6 +117,35 @@ const Form = {
 
     this.bindFilePicker('Image', 'image');
     this.bindFilePicker('Video', 'video');
+
+    const urlField = $('#url');
+    const fillIfRoblox = async (force) => {
+      const val = urlField.value.trim();
+      if (!val || val === this._lastLookup) return;
+      if (!Roblox.parse(val)) return;
+      this._lastLookup = val;
+      const hint = $('#urlHint');
+      hint.textContent = 'fetching from roblox…';
+      hint.className = 'hint';
+      try {
+        const info = await Roblox.lookup(val);
+        // only fill empty fields (don't overwrite user edits) unless force=true
+        if (force || !$('#name').value.trim()) $('#name').value = info.name || '';
+        if (force || !$('#description').value.trim()) $('#description').value = info.description || '';
+        if ((force || !$('#image').value.trim()) && info.iconUrl) {
+          $('#image').value = info.iconUrl;
+          $('#imagePreview').innerHTML = `<img src="${info.iconUrl}" style="max-width:120px;border-radius:8px;border:1px solid rgba(255,255,255,0.08)">`;
+        }
+        hint.textContent = `✓ ${info.name} · ${info.playing.toLocaleString()} playing · ${info.visits.toLocaleString()} visits`;
+        hint.className = 'hint ok';
+      } catch (err) {
+        hint.textContent = err.message;
+        hint.className = 'hint err';
+      }
+    };
+    urlField.addEventListener('blur', () => fillIfRoblox(false));
+    urlField.addEventListener('paste', () => setTimeout(() => fillIfRoblox(false), 50));
+    $('#refillBtn').addEventListener('click', () => { this._lastLookup = ''; fillIfRoblox(true); });
   },
   bindFilePicker(Label, kind) {
     const btn = $(`#pick${Label}`);
