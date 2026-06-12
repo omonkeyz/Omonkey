@@ -79,28 +79,80 @@ function layout() {
   const n = state.games.length;
   const positions = [];
   if (n > 0) {
-    const baseR = Math.min(w, h) * 0.34;
-    const useTwoRings = n > 8;
-    for (let i = 0; i < n; i++) {
-      let ring, idxInRing, ringCount;
-      if (!useTwoRings) {
-        ring = 0; idxInRing = i; ringCount = n;
-      } else {
-        const inner = Math.floor(n / 3);
-        if (i < inner) { ring = 0; idxInRing = i; ringCount = inner; }
-        else { ring = 1; idxInRing = i - inner; ringCount = n - inner; }
+    // 1. measure each node so big thumbs claim bigger angular slots
+    const PAD = 38; // pixel gap budget around each node
+    const sizes = state.games.map(g => {
+      if (g.type === 'person') return 78;
+      if (g.type === 'group') return thumbSizeFor(g.memberCount);
+      return thumbSizeFor(g.playing);
+    });
+    const arcs = sizes.map(s => s + PAD * 2);
+    const totalArc = arcs.reduce((a, s) => a + s, 0);
+
+    // 2. pick a radius that (a) gives nodes breathing room, (b) fits in viewport
+    const visualR = Math.min(w, h) * 0.32;
+    const fitR = totalArc / (2 * Math.PI);
+    const maxR = Math.min(w, h) * 0.46;
+    let useTwoRings = false;
+    let ringR = Math.max(visualR, fitR);
+    if (ringR > maxR) { useTwoRings = true; ringR = maxR; }
+
+    if (!useTwoRings) {
+      // single ring, angular slot proportional to node size
+      let cursor = -Math.PI / 2 - Math.PI; // start at top (rotate so first slot's centre is at 12 o'clock)
+      // shift so first node sits centred at top
+      cursor = -Math.PI / 2 - (arcs[0] / totalArc) * Math.PI;
+      for (let i = 0; i < n; i++) {
+        const slot = (arcs[i] / totalArc) * Math.PI * 2;
+        const baseAngle = cursor + slot / 2;
+        const seed = (state.games[i]?.id || String(i)).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+        const jitterA = ((seed % 1000) / 1000 - 0.5) * slot * 0.18;
+        const jitterR = (((seed >>> 10) % 1000) / 1000 - 0.5) * 28;
+        const angle = baseAngle + jitterA;
+        const r = ringR + jitterR;
+        const x = state.cx + Math.cos(angle) * r;
+        const y = state.cy + Math.sin(angle) * r;
+        positions.push({ x, y, angle, r });
+        cursor += slot;
       }
-      const baseRing = baseR * (ring === 0 ? 0.78 : 1.18);
-      const offset = ring === 1 ? Math.PI / ringCount : -Math.PI / 2;
-      // deterministic jitter per game so positions stay stable across renders
-      const seed = (state.games[i]?.id || String(i)).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
-      const jitterA = ((seed % 1000) / 1000 - 0.5) * (Math.PI / Math.max(ringCount, 3)) * 0.6;
-      const jitterR = (((seed >>> 10) % 1000) / 1000 - 0.5) * baseR * 0.22;
-      const angle = (idxInRing / ringCount) * Math.PI * 2 + offset + jitterA;
-      const r = baseRing + jitterR;
-      const x = state.cx + Math.cos(angle) * r;
-      const y = state.cy + Math.sin(angle) * r;
-      positions.push({ x, y, angle, r });
+    } else {
+      // two rings: alternate biggest -> outer, next -> inner, etc.
+      const byIdx = sizes.map((s, i) => ({ s, i })).sort((a, b) => b.s - a.s);
+      const inner = [], outer = [];
+      byIdx.forEach((it, k) => (k % 2 === 0 ? outer : inner).push(it.i));
+      const ringFor = new Array(n);
+      const idxInRing = new Array(n);
+      const ringArcs = [0, 0];
+      [inner, outer].forEach((ringList, ringNum) => {
+        ringList.forEach((origIdx, k) => {
+          ringFor[origIdx] = ringNum;
+          idxInRing[origIdx] = k;
+          ringArcs[ringNum] += arcs[origIdx];
+        });
+      });
+      const innerR = Math.min(w, h) * 0.26;
+      const outerR = Math.min(w, h) * 0.44;
+      const ringRadii = [innerR, outerR];
+      const cursors = [0, 0];
+      // align first slot at top
+      cursors[0] = -Math.PI / 2 - (arcs[inner[0]] / ringArcs[0]) * Math.PI;
+      cursors[1] = -Math.PI / 2 - (arcs[outer[0]] / ringArcs[1]) * Math.PI + Math.PI / Math.max(outer.length, 1);
+      for (let i = 0; i < n; i++) {
+        const ringNum = ringFor[i];
+        const ringList = ringNum === 0 ? inner : outer;
+        const ringTotal = ringArcs[ringNum];
+        const slot = (arcs[i] / ringTotal) * Math.PI * 2;
+        const baseAngle = cursors[ringNum] + slot / 2;
+        const seed = (state.games[i]?.id || String(i)).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+        const jitterA = ((seed % 1000) / 1000 - 0.5) * slot * 0.15;
+        const jitterR = (((seed >>> 10) % 1000) / 1000 - 0.5) * 24;
+        const angle = baseAngle + jitterA;
+        const r = ringRadii[ringNum] + jitterR;
+        const x = state.cx + Math.cos(angle) * r;
+        const y = state.cy + Math.sin(angle) * r;
+        positions.push({ x, y, angle, r });
+        cursors[ringNum] += slot;
+      }
     }
   }
   state.positions = positions;
