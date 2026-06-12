@@ -31,7 +31,7 @@
 
 <main class="web-stage" id="stage">
   <div class="pan-wrap" id="panWrap">
-    <svg id="web-svg" aria-hidden="true">
+    <svg id="web-bg" aria-hidden="true">
       <defs>
         <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stop-color="#f5a524" stop-opacity="0.55" />
@@ -41,10 +41,7 @@
       </defs>
       <circle id="centerHalo" r="220" fill="url(#centerGlow)" />
       <g id="rings"></g>
-      <g id="threads"></g>
     </svg>
-
-    <div id="nodes" class="nodes-layer"></div>
 
     <div id="centerNode" class="center-node">
       <div class="center-orb">
@@ -55,6 +52,12 @@
         <div class="center-sub">building worlds on roblox</div>
       </div>
     </div>
+
+    <svg id="web-threads" aria-hidden="true">
+      <g id="threads"></g>
+    </svg>
+
+    <div id="nodes" class="nodes-layer"></div>
   </div>
 
   <div id="empty" class="empty-state" hidden>

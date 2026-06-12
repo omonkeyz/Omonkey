@@ -59,8 +59,8 @@ function layout() {
   state.cx = w / 2;
   state.cy = h / 2;
 
-  const svg = $('#web-svg');
-  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  $('#web-bg').setAttribute('viewBox', `0 0 ${w} ${h}`);
+  $('#web-threads').setAttribute('viewBox', `0 0 ${w} ${h}`);
   $('#centerHalo').setAttribute('cx', state.cx);
   $('#centerHalo').setAttribute('cy', state.cy);
 
