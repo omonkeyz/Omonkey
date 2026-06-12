@@ -90,9 +90,14 @@ function layout() {
         if (i < inner) { ring = 0; idxInRing = i; ringCount = inner; }
         else { ring = 1; idxInRing = i - inner; ringCount = n - inner; }
       }
-      const r = baseR * (ring === 0 ? 0.78 : 1.15);
+      const baseRing = baseR * (ring === 0 ? 0.78 : 1.18);
       const offset = ring === 1 ? Math.PI / ringCount : -Math.PI / 2;
-      const angle = (idxInRing / ringCount) * Math.PI * 2 + offset;
+      // deterministic jitter per game so positions stay stable across renders
+      const seed = (state.games[i]?.id || String(i)).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+      const jitterA = ((seed % 1000) / 1000 - 0.5) * (Math.PI / Math.max(ringCount, 3)) * 0.6;
+      const jitterR = (((seed >>> 10) % 1000) / 1000 - 0.5) * baseR * 0.22;
+      const angle = (idxInRing / ringCount) * Math.PI * 2 + offset + jitterA;
+      const r = baseRing + jitterR;
       const x = state.cx + Math.cos(angle) * r;
       const y = state.cy + Math.sin(angle) * r;
       positions.push({ x, y, angle, r });

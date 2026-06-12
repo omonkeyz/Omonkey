@@ -145,7 +145,7 @@ const Form = {
     };
     urlField.addEventListener('blur', () => fillIfRoblox(false));
     urlField.addEventListener('paste', () => setTimeout(() => fillIfRoblox(false), 50));
-    $('#refillBtn').addEventListener('click', () => { this._lastLookup = ''; fillIfRoblox(true); });
+    this._fillIfRoblox = fillIfRoblox;
   },
   bindFilePicker(Label, kind) {
     const btn = $(`#pick${Label}`);
@@ -201,19 +201,28 @@ const Form = {
   },
   reset() { this.fill(null); },
   async save() {
-    const payload = {
-      id: $('#gameId').value || undefined,
-      name: $('#name').value.trim(),
-      url: $('#url').value.trim(),
-      description: $('#description').value.trim(),
-      image: $('#image').value.trim(),
-      video: $('#video').value.trim(),
-      order: parseInt($('#order').value, 10) || 0,
-      active: $('#active').checked,
-    };
-    if (!payload.name) { Toast.show('name is required', 'err'); return; }
     $('#saveBtn').disabled = true;
     try {
+      // auto-pull roblox metadata if the URL is roblox and we haven't fetched it yet
+      const urlVal = $('#url').value.trim();
+      if (urlVal && Roblox.parse(urlVal) && this._lastLookup !== urlVal) {
+        const needsFill = !$('#name').value.trim() || !$('#description').value.trim() || !$('#image').value.trim();
+        if (needsFill) {
+          Toast.show('fetching from roblox…', 'ok');
+          try { await this._fillIfRoblox(false); } catch {}
+        }
+      }
+      const payload = {
+        id: $('#gameId').value || undefined,
+        name: $('#name').value.trim(),
+        url: $('#url').value.trim(),
+        description: $('#description').value.trim(),
+        image: $('#image').value.trim(),
+        video: $('#video').value.trim(),
+        order: parseInt($('#order').value, 10) || 0,
+        active: $('#active').checked,
+      };
+      if (!payload.name) { Toast.show('name is required', 'err'); return; }
       await Games.save(payload);
       Toast.show(payload.id ? 'updated' : 'added', 'ok');
       this.reset();
