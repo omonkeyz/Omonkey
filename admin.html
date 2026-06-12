@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>admin · omonkey</title>
+<meta name="robots" content="noindex,nofollow" />
+<meta name="theme-color" content="#06070a" />
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%23f5a524'/><circle cx='32' cy='32' r='14' fill='%2306070a'/></svg>" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body class="admin">
+
+<div id="login" class="admin-shell" hidden>
+  <div class="card login-card">
+    <h1 style="margin:0 0 16px;font-size:18px;font-weight:600;display:flex;align-items:center;gap:10px;">
+      <span class="dot" style="width:8px;height:8px;border-radius:50%;background:#f5a524;box-shadow:0 0 12px #f5a524;"></span>
+      admin
+    </h1>
+    <form id="loginForm">
+      <div class="field">
+        <label for="pw">password</label>
+        <input id="pw" type="password" autocomplete="current-password" required />
+      </div>
+      <button class="btn btn-primary" style="width:100%" type="submit">sign in</button>
+    </form>
+  </div>
+</div>
+
+<div id="panel" class="admin-shell" hidden>
+  <div class="admin-head">
+    <h1><span class="dot"></span> admin</h1>
+    <div style="display:inline-flex;gap:10px;">
+      <a class="btn btn-ghost" href="/">view site</a>
+      <button id="logout" class="btn btn-ghost" type="button">sign out</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 id="formTitle">add game</h2>
+    <form id="gameForm">
+      <input type="hidden" id="gameId" />
+      <div class="field-row">
+        <div class="field">
+          <label for="name">name</label>
+          <input id="name" type="text" maxlength="80" required placeholder="game title" />
+        </div>
+        <div class="field">
+          <label for="url">play link</label>
+          <input id="url" type="url" placeholder="https://www.roblox.com/games/..." />
+        </div>
+      </div>
+      <div class="field">
+        <label for="description">description</label>
+        <textarea id="description" maxlength="600" placeholder="what is it"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>image (thumbnail)</label>
+          <div class="upload">
+            <button type="button" class="btn btn-ghost" id="pickImage">choose image</button>
+            <input type="file" id="imageFile" accept="image/*" hidden />
+            <span class="file-name" id="imageName"></span>
+          </div>
+          <progress id="imageProg" max="100" value="0" hidden></progress>
+          <input type="hidden" id="image" />
+          <div id="imagePreview" style="margin-top:10px;"></div>
+        </div>
+        <div class="field">
+          <label>video (mp4, up to 500&nbsp;mb)</label>
+          <div class="upload">
+            <button type="button" class="btn btn-ghost" id="pickVideo">choose video</button>
+            <input type="file" id="videoFile" accept="video/*" hidden />
+            <span class="file-name" id="videoName"></span>
+          </div>
+          <progress id="videoProg" max="100" value="0" hidden></progress>
+          <input type="hidden" id="video" />
+          <div id="videoPreview" style="margin-top:10px;"></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="order">order (lower = earlier)</label>
+          <input id="order" type="number" value="0" step="1" />
+        </div>
+        <div class="field" style="display:flex;align-items:flex-end;">
+          <label class="toggle">
+            <input id="active" type="checkbox" checked />
+            <span class="switch"></span>
+            <span>active</span>
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:6px;">
+        <button class="btn btn-primary" type="submit" id="saveBtn">save</button>
+        <button class="btn btn-ghost" type="button" id="resetBtn">reset</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>games</h2>
+    <div id="games" class="game-list"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="/admin.js" type="module"></script>
+</body>
+</html>
