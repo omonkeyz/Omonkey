@@ -303,7 +303,7 @@ const Pan = {
     this._apply = apply;
     this._setScale = setScale;
     stage.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.modal') || e.target.closest('.topbar') || e.target.closest('.bottombar') || e.target.closest('#recenter') || e.target.closest('.zoom-controls')) return;
+      if (e.target.closest('.modal') || e.target.closest('.topbar') || e.target.closest('.bottombar') || e.target.closest('#recenter') || e.target.closest('.zoom-controls') || e.target.closest('.game-node') || e.target.closest('.center-node')) return;
       this.dragging = true;
       this.moved = 0;
       this.startX = e.clientX; this.startY = e.clientY;
